@@ -131,7 +131,7 @@ func downloadProxyStream(c *gin.Context, song *model.Song, baseFilename string) 
 	filename := fmt.Sprintf("%s.%s", baseFilename, ext)
 	setDownloadHeader(c, filename)
 	c.Status(resp.StatusCode)
-	io.Copy(c.Writer, resp.Body)
+	_, _ = io.Copy(c.Writer, resp.Body)
 }
 
 // --- audio data fetchers ---

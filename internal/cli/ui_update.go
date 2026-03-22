@@ -25,11 +25,11 @@ func (m modelState) updateSpinnerAndProgress(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case spinner.TickMsg:
 		var cmd tea.Cmd
-		m.spinner, cmd = m.spinner.Update(msg)
+		spinnerModel, cmd := m.spinner.Update(msg)
+		m.spinner = spinnerModel //nolint:staticcheck // Required by bubbletea pattern
 		return cmd
 	case progress.FrameMsg:
-		progressModel, cmd := m.progress.Update(msg)
-		m.progress = progressModel.(progress.Model)
+		_, cmd := m.progress.Update(msg)
 		return cmd
 	}
 	return nil
@@ -554,7 +554,7 @@ func (m modelState) updatePlaying(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m modelState) handlePlayPause() (tea.Model, tea.Cmd) {
 	if m.playingProcess != nil {
-		m.playingProcess.Kill()
+		_ = m.playingProcess.Kill()
 		m.playingProcess = nil
 		m.isPaused = true
 		m.statusMsg = "已暂停"
@@ -578,7 +578,7 @@ func (m modelState) handlePlayStop() (tea.Model, tea.Cmd) {
 
 func (m modelState) stopPlaying(statusMsg string) modelState {
 	if m.playingProcess != nil {
-		m.playingProcess.Kill()
+		_ = m.playingProcess.Kill()
 		m.playingProcess = nil
 	}
 	m.state = stateList

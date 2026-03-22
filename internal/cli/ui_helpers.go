@@ -141,7 +141,7 @@ func parseContentRange(resp *http.Response) int64 {
 	cr := resp.Header.Get("Content-Range")
 	if parts := strings.Split(cr, "/"); len(parts) == 2 {
 		var size int64
-		fmt.Sscanf(parts[1], "%d", &size)
+		_, _ = fmt.Sscanf(parts[1], "%d", &size)
 		return size
 	}
 	return resp.ContentLength

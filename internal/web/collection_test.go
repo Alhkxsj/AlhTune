@@ -12,7 +12,7 @@ import (
 func setupTestDB(t *testing.T) *CollectionRepository {
 	t.Helper()
 	tmpFile := "data/test_favorites.db"
-	os.MkdirAll("data", 0755)
+	_ = os.MkdirAll("data", 0755)
 	t.Cleanup(func() {
 		os.Remove(tmpFile)
 	})
@@ -156,7 +156,7 @@ func TestCollectionRepository_GetSongs(t *testing.T) {
 		Artist:       "Another Artist",
 		Duration:     200,
 	}
-	repo.AddSong(col.ID, song)
+	_ = repo.AddSong(col.ID, song)
 
 	songs, err := repo.GetSongs(col.ID)
 	if err != nil {
@@ -182,7 +182,7 @@ func TestCollectionRepository_RemoveSong(t *testing.T) {
 		Name:         "Remove Me",
 		Artist:       "Artist",
 	}
-	repo.AddSong(col.ID, song)
+	_ = repo.AddSong(col.ID, song)
 
 	err = repo.RemoveSong(col.ID, "song789", "kugou")
 	if err != nil {
@@ -210,7 +210,7 @@ func TestCollectionRepository_CountSongs(t *testing.T) {
 			Source:       "netease",
 			Name:         "Song",
 		}
-		repo.AddSong(col.ID, song)
+		_ = repo.AddSong(col.ID, song)
 	}
 
 	count, err := repo.CountSongs(col.ID)
@@ -269,7 +269,7 @@ func TestCleanupOldFiles(t *testing.T) {
 
 	// Modify time to make it old
 	oldTime := time.Now().Add(-15 * time.Minute)
-	os.Chtimes(oldFile, oldTime, oldTime)
+	_ = os.Chtimes(oldFile, oldTime, oldTime)
 
 	// Create new file
 	newFile := tmpDir + "/new.txt"

@@ -109,7 +109,9 @@ func Start(port string, shouldOpenBrowser bool, flags FeatureFlags) {
 		// Log error but continue - cookies are optional
 		fmt.Printf("Warning: failed to load cookies: %v\n", err)
 	}
-	InitDB()
+	if err := InitDB(); err != nil {
+		fmt.Printf("Warning: failed to initialize database: %v\n", err)
+	}
 	defer CloseDB()
 
 	gin.SetMode(gin.ReleaseMode)
@@ -138,7 +140,7 @@ func Start(port string, shouldOpenBrowser bool, flags FeatureFlags) {
 	})
 
 	videoDir := "data/video_output"
-	os.MkdirAll(videoDir, 0755)
+	_ = os.MkdirAll(videoDir, 0755)
 
 	api := r.Group(RoutePrefix)
 	api.Static("/videos", videoDir)
@@ -183,5 +185,5 @@ func Start(port string, shouldOpenBrowser bool, flags FeatureFlags) {
 	if shouldOpenBrowser {
 		go func() { time.Sleep(500 * time.Millisecond); core.OpenBrowser(urlStr) }()
 	}
-	r.Run(":" + port)
+	_ = r.Run(":" + port)
 }
