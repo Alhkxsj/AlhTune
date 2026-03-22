@@ -1,0 +1,456 @@
+{{define "song_list"}}
+{{ if .Result }}
+<section x-data="songList()" x-init="init()" class="mb-6">
+    <!-- List Header -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+        <div>
+            {{ if .ColID }}
+            <h2 class="text-xl font-bold flex items-center gap-2">
+                <i class="fa-solid fa-folder-open text-primary"></i>
+                正在查看：<span class="text-primary">{{ .ColName }}</span>
+                <span class="text-sm opacity-70">(共 {{ len .Result }} 首)</span>
+            </h2>
+            {{ else }}
+            <h2 class="text-xl font-bold flex items-center gap-2">
+                <i class="fa-solid fa-music text-primary"></i>
+                找到 <span class="text-primary">{{ len .Result }}</span> 首歌曲
+            </h2>
+            {{ if .PlaylistLink }}
+            <a
+                href="{{ .PlaylistLink }}"
+                target="_blank"
+                class="text-sm text-secondary hover:underline inline-flex items-center gap-1"
+            >
+                <i class="fa-solid fa-arrow-up-right-from-square"></i> 打开原始歌单
+            </a>
+            {{ end }} {{ end }}
+        </div>
+
+        <div class="flex gap-2">
+            <button class="btn btn-primary btn-sm gap-2" @click="playAll($event)">
+                <i class="fa-solid fa-play"></i> 播放全部
+            </button>
+            <button
+                class="btn btn-outline btn-sm gap-2"
+                :class="{ 'btn-active': batchMode }"
+                @click="toggleBatchMode()"
+            >
+                <i class="fa-solid fa-list-check"></i> 批量操作
+            </button>
+        </div>
+    </div>
+
+    <!-- Play Mode Control -->
+    <div x-data="{ playMode: 'list', playModeText: '列表循环' }" class="flex items-center gap-3 mb-4 p-3 bg-base-200/50 rounded-lg border border-white/10">
+        <span class="text-sm opacity-70 flex items-center gap-2">
+            <i class="fa-solid fa-repeat text-primary"></i> 播放模式:
+        </span>
+        <button
+            class="btn btn-xs btn-circle btn-outline"
+            @click="cyclePlayMode()"
+            title="切换播放模式"
+        >
+            <i class="fa-solid" :class="getPlayModeIcon()"></i>
+        </button>
+        <span class="text-sm font-medium" x-text="playModeText"></span>
+    </div>
+
+    <!-- Batch Toolbar -->
+    <div x-show="batchMode" x-cloak class="mb-4 p-4 bg-base-200 rounded-lg border border-primary">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <div class="flex items-center gap-3">
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input
+                        type="checkbox"
+                        class="checkbox checkbox-primary checkbox-sm"
+                        x-model="selectAllChecked"
+                        @change="toggleSelectAll($event.target.checked)"
+                    />
+                    <span class="text-sm font-medium">全选</span>
+                </label>
+                <span class="text-sm opacity-70">
+                    已选 <span class="text-primary font-bold" x-text="getSelectedCount()"></span> 首
+                </span>
+                <button class="btn btn-warning btn-xs gap-1" @click="selectInvalidSongs()">
+                    <i class="fa-solid fa-triangle-exclamation"></i> 选择无效
+                </button>
+            </div>
+            <div class="flex gap-2">
+                <button
+                    class="btn btn-secondary btn-sm gap-2"
+                    :disabled="getSelectedCount() === 0"
+                    @click="batchSwitchSource()"
+                >
+                    <i class="fa-solid fa-arrows-rotate"></i> 批量换源
+                </button>
+                <button
+                    class="btn btn-primary btn-sm gap-2"
+                    :disabled="getSelectedCount() === 0"
+                    @click="batchDownload()"
+                >
+                    <i class="fa-solid fa-download"></i> 批量下载
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Song Cards Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {{ range $idx, $song := .Result }}
+        <div
+            class="card bg-base-200/50 hover:bg-base-200 transition-all border border-white/10 song-card shadow-lg"
+            data-id="{{.ID}}"
+            data-source="{{.Source}}"
+            data-duration="{{.Duration}}"
+            data-name="{{.Name}}"
+            data-artist="{{.Artist}}"
+            data-cover="{{.Cover}}"
+            data-extra='{{tojson .Extra}}'
+        >
+            <div class="card-body p-4">
+                <div class="flex items-start gap-3">
+                    <!-- Checkbox (Batch Mode) -->
+                    <div x-show="batchMode" x-cloak>
+                        <input
+                            type="checkbox"
+                            class="checkbox checkbox-sm song-checkbox"
+                            x-model="selectedSongs"
+                            :value="{
+                                id: '{{.ID}}',
+                                source: '{{.Source}}',
+                                name: '{{.Name}}',
+                                artist: '{{.Artist}}',
+                                cover: '{{.Cover}}',
+                                duration: {{.Duration}},
+                                extra: {{tojson .Extra}}
+                            }"
+                            @click.stop
+                        />
+                    </div>
+
+                    <!-- Cover Image -->
+                    <div
+                        class="relative w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 cursor-pointer cover-wrapper group"
+                        @click="openVideoGen(this)"
+                    >
+                        {{ if .Cover }}
+                        <img
+                            src="{{ .Cover }}"
+                            alt="{{ .Name }}"
+                            loading="lazy"
+                            class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                            onerror="this.src='https://via.placeholder.com/150?text=Music'"
+                        />
+                        {{ else }}
+                        <div class="w-full h-full flex items-center justify-center bg-base-300">
+                            <i class="fa-solid fa-music text-2xl opacity-50"></i>
+                        </div>
+                        {{ end }}
+                        <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <i class="fa-solid fa-eye text-white text-xl"></i>
+                        </div>
+                    </div>
+
+                    <!-- Song Info -->
+                    <div class="flex-1 min-w-0">
+                        <h3 class="font-bold truncate text-lg">
+                            {{ if .Link }}
+                            <a
+                                href="{{ .Link }}"
+                                target="_blank"
+                                class="hover:text-primary transition-colors"
+                                title="打开原始链接"
+                            >
+                                {{ .Name }}
+                            </a>
+                            {{ else }} {{ .Name }} {{ end }}
+                        </h3>
+                        <p class="text-sm opacity-70 truncate flex items-center gap-1">
+                            <i class="fa-regular fa-user text-secondary"></i> {{ .Artist }}
+                            {{ if .Album }} &bull; <span class="truncate">{{ .Album }}</span>{{ end }}
+                        </p>
+                        <div class="flex flex-wrap gap-1 mt-2">
+                            <span class="badge badge-primary badge-xs gap-1">
+                                <i class="fa-solid fa-radio"></i> {{ .Source }}
+                            </span>
+                            <span class="badge badge-ghost badge-xs">
+                                {{ if .FormatDuration }}{{ .FormatDuration }}{{ else }}-{{ end }}
+                            </span>
+                            <span class="badge badge-ghost badge-xs" id="size-{{.ID}}">
+                                <i class="fa fa-spinner fa-spin"></i>
+                            </span>
+                            <span class="badge badge-ghost badge-xs" id="bitrate-{{.ID}}">
+                                <i class="fa fa-circle-notch fa-spin"></i>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="flex justify-end gap-2 mt-3 pt-3 border-t border-white/10">
+                    <button
+                        class="btn btn-circle btn-sm btn-play hover:bg-primary hover:text-white transition-colors"
+                        title="播放"
+                        @click.stop="togglePlay(this)"
+                    >
+                        <i class="fa-solid fa-play"></i>
+                    </button>
+
+                    <button
+                        class="btn btn-circle btn-sm btn-switch hover:bg-secondary hover:text-white transition-colors"
+                        title="换源"
+                        @click.stop="switchSource(this)"
+                    >
+                        <i class="fa-solid fa-arrows-rotate"></i>
+                    </button>
+
+                    {{ if $.ColID }}
+                    <button
+                        class="btn btn-circle btn-sm btn-error hover:bg-red-500 hover:text-white transition-colors"
+                        title="移出歌单"
+                        @click.stop="removeFromCollection(this, '{{$.ColID}}', '{{.ID}}', '{{.Source}}')"
+                    >
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                    {{ else }}
+                    <button
+                        class="btn btn-circle btn-sm btn-fav hover:bg-pink-500 hover:text-white transition-colors"
+                        title="收藏到歌单"
+                        @click.stop="addToCollection(this)"
+                    >
+                        <i class="fa-regular fa-heart"></i>
+                    </button>
+                    {{ end }}
+
+                    <a
+                        href="{{$.Root}}/download?id={{.ID}}&source={{.Source}}&name={{.Name}}&artist={{.Artist}}&cover={{urlquery .Cover}}&extra={{urlquery (tojson .Extra)}}"
+                        class="btn btn-circle btn-sm btn-download hover:bg-green-500 hover:text-white transition-colors"
+                        title="下载歌曲"
+                        target="_blank"
+                    >
+                        <i class="fa-solid fa-download"></i>
+                    </a>
+
+                    <a
+                        href="{{$.Root}}/download_lrc?id={{.ID}}&source={{.Source}}&name={{.Name}}&artist={{.Artist}}"
+                        class="btn btn-circle btn-sm hover:bg-blue-500 hover:text-white transition-colors"
+                        title="下载歌词"
+                        target="_blank"
+                    >
+                        <i class="fa-solid fa-file-lines"></i>
+                    </a>
+
+                    <a
+                        href="{{$.Root}}/download_cover?url={{ .Cover }}&name={{ .Name }}&artist={{ .Artist }}"
+                        class="btn btn-circle btn-sm hover:bg-purple-500 hover:text-white transition-colors"
+                        title="下载封面"
+                        target="_blank"
+                    >
+                        <i class="fa-regular fa-image"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+        {{ end }}
+    </div>
+</section>
+
+<script>
+    window.songList = function () {
+        return {
+            batchMode: false,
+            selectedSongs: [],
+            selectAllChecked: false,
+            playMode: 'list',
+            playModeText: '列表循环',
+
+            init() {
+                this.batchMode = false
+                this.selectedSongs = []
+                this.selectAllChecked = false
+            },
+
+            toggleBatchMode() {
+                this.batchMode = !this.batchMode
+                if (!this.batchMode) {
+                    this.selectedSongs = []
+                    this.selectAllChecked = false
+                }
+            },
+
+            toggleSelectAll(checked) {
+                this.selectAllChecked = checked
+            },
+
+            getSelectedCount() {
+                return this.selectedSongs.length
+            },
+
+            selectInvalidSongs() {
+                document.querySelectorAll('.song-card.unplayable').forEach(card => {
+                    const cb = card.querySelector('.song-checkbox')
+                    if (cb && !cb.checked) {
+                        cb.click()
+                    }
+                })
+            },
+
+            playAll(event) {
+                const btn = event.currentTarget
+                const firstCard = document.querySelector('.song-card')
+                if (firstCard) {
+                    const playBtn = firstCard.querySelector('.btn-play')
+                    if (window.playerModuleInstance) {
+                        window.playerModuleInstance.playAllFromButton(playBtn || firstCard)
+                    }
+                }
+            },
+
+            togglePlay(btn) {
+                if (window.playerModuleInstance) {
+                    window.playerModuleInstance.togglePlay(btn)
+                }
+            },
+
+            switchSource(btn) {
+                const card = btn.closest('.song-card')
+                const songData = {
+                    id: card.dataset.id,
+                    source: card.dataset.source,
+                    name: card.dataset.name,
+                    artist: card.dataset.artist
+                }
+
+                // Open loading modal
+                const loadingModal = document.getElementById('loading_modal')
+                if (loadingModal && loadingModal._x_dataStack) {
+                    loadingModal._x_dataStack[0].loadingText = `正在为 ${songData.name} 切换音源...`
+                    loadingModal.showModal()
+                }
+
+                fetch(`${window.API_ROOT}/switch_source`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(songData)
+                })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (loadingModal) loadingModal.close()
+                        if (data.error) {
+                            alert(data.error)
+                        } else if (data.song) {
+                            alert('已切换到其他音源')
+                            setTimeout(() => location.reload(), 1000)
+                        }
+                    })
+                    .catch(err => {
+                        if (loadingModal) loadingModal.close()
+                        alert('切换失败：' + err.message)
+                    })
+            },
+
+            addToCollection(btn) {
+                const card = btn.closest('.song-card')
+                const songData = {
+                    id: card.dataset.id,
+                    source: card.dataset.source,
+                    name: card.dataset.name,
+                    artist: card.dataset.artist,
+                    cover: card.dataset.cover,
+                    duration: parseInt(card.dataset.duration) || 0,
+                    extra: card.dataset.extra
+                }
+
+                const modal = document.getElementById('add_to_collection_modal')
+                if (modal && modal._x_dataStack) {
+                    modal._x_dataStack[0].open(songData)
+                }
+            },
+
+            removeFromCollection(btn, colId, songId, source) {
+                if (!confirm('确定要从歌单中移除这首歌吗？')) return
+
+                fetch(
+                    `${window.API_ROOT}/collections/${colId}/songs?id=${encodeURIComponent(songId)}&source=${encodeURIComponent(source)}`,
+                    { method: 'DELETE' }
+                )
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.error) {
+                            alert(data.error)
+                        } else {
+                            alert('已移除')
+                            setTimeout(() => location.reload(), 1000)
+                        }
+                    })
+                    .catch(err => {
+                        alert('操作失败：' + err.message)
+                    })
+            },
+
+            openVideoGen(coverWrapper) {
+                const card = coverWrapper.closest('.song-card')
+                if (window.VideoGen && window.VideoGen.openRenderWindow) {
+                    window.VideoGen.openRenderWindow({
+                        id: card.dataset.id,
+                        source: card.dataset.source,
+                        name: card.dataset.name,
+                        artist: card.dataset.artist,
+                        cover: coverWrapper.querySelector('img')?.src || card.dataset.cover,
+                        duration: parseInt(card.dataset.duration) || 0
+                    })
+                }
+            },
+
+            batchSwitchSource() {
+                const modal = document.getElementById('batch_switch_modal')
+                if (modal && modal._x_dataStack) {
+                    modal._x_dataStack[0].selectedSongs = this.selectedSongs
+                    modal._x_dataStack[0].count = this.selectedSongs.length
+                    modal.showModal()
+                }
+            },
+
+            batchDownload() {
+                this.selectedSongs.forEach(song => {
+                    const url = window.buildDownloadURL(
+                        song.id,
+                        song.source,
+                        song.name,
+                        song.artist,
+                        song.cover,
+                        song.extra
+                    )
+                    window.open(url, '_blank')
+                })
+            },
+
+            cyclePlayMode() {
+                const modes = [
+                    { key: 'list', text: '列表循环', icon: 'fa-list' },
+                    { key: 'single', text: '单曲循环', icon: 'fa-repeat-1' },
+                    { key: 'random', text: '随机播放', icon: 'fa-shuffle' }
+                ]
+                const current = modes.findIndex(m => m.key === this.playMode)
+                const next = modes[(current + 1) % modes.length]
+                this.playMode = next.key
+                this.playModeText = next.text
+            },
+
+            getPlayModeIcon() {
+                const icons = {
+                    list: 'fa-list',
+                    single: 'fa-repeat-1',
+                    random: 'fa-shuffle'
+                }
+                return icons[this.playMode] || 'fa-list'
+            }
+        }
+    }
+</script>
+{{ else if .Keyword }} {{ if not .Error }}
+<div class="text-center py-16">
+    <i class="fa-solid fa-music text-6xl opacity-20 mb-4 block"></i>
+    <p class="text-lg opacity-70">未找到符合条件的资源</p>
+</div>
+{{ end }} {{ end }} {{end}}

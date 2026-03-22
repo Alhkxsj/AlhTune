@@ -1,0 +1,137 @@
+{{define "playlist_grid"}}
+{{ if .IsLocalColPage }}
+<div class="mb-6">
+    <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-bold flex items-center gap-2">
+            <i class="fa-solid fa-folder-open text-primary"></i>
+            本地自制歌单 <span class="text-sm opacity-70">(共 {{ len .Playlists }} 个)</span>
+        </h2>
+        <button type="button" class="btn btn-primary btn-sm gap-2" onclick="showEditCollectionModal()">
+            <i class="fa-solid fa-plus"></i> 新建歌单
+        </button>
+    </div>
+</div>
+{{ end }}
+
+{{ if .Playlists }}
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+    {{ range .Playlists }}
+    <div
+        class="card bg-base-200/50 hover:bg-base-200 transition-all border border-white/10 shadow-lg cursor-pointer group"
+        onclick="location.href='{{$.Root}}/{{ if eq .Source "local" }}collection?id={{.ID}}{{ else }}playlist?id={{.ID}}&source={{.Source}}{{ end }}'"
+    >
+        <figure class="relative aspect-video">
+            <img
+                src="{{ .Cover }}"
+                alt="{{ .Name }}"
+                loading="lazy"
+                class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                onerror="this.src='https://via.placeholder.com/400?text=Cover'"
+            />
+            <span
+                class="badge badge-sm absolute top-2 right-2"
+                :class="{
+                    'badge-local': '{{ .Source }}' === 'local',
+                    'badge-primary': '{{ .Source }}' !== 'local'
+                }"
+            >
+                {{ if eq .Source "local" }}
+                    <i class="fa-solid fa-folder"></i> 本地歌单
+                {{ else }}
+                    <i class="fa-solid fa-radio"></i> {{ .Source }}
+                {{ end }}
+            </span>
+            <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
+                <span class="text-white text-sm font-medium">
+                    <i class="fa-solid fa-play"></i> 点击查看详情
+                </span>
+            </div>
+        </figure>
+        <div class="card-body p-4">
+            <h3 class="card-title text-base justify-between">
+                <span class="truncate" title="{{ .Name }}">
+                    {{ .Name }}
+                    {{ if .Link }}
+                    <a
+                        href="{{ .Link }}"
+                        target="_blank"
+                        class="text-secondary hover:text-primary transition-colors"
+                        title="去原网页"
+                        onclick="event.stopPropagation()"
+                    >
+                        <i class="fa-solid fa-arrow-up-right-from-square text-xs"></i>
+                    </a>
+                    {{ end }}
+                </span>
+            </h3>
+            <div class="flex justify-between items-center mt-2">
+                <div class="text-xs opacity-70 flex items-center gap-1">
+                    <i class="fa-regular fa-user"></i>
+                    <span class="truncate max-w-[120px]">{{ .Creator }}</span>
+                </div>
+                <div class="badge badge-ghost badge-sm gap-1">
+                    <i class="fa-solid fa-music"></i>
+                    <span>共 {{ .TrackCount }} 首</span>
+                </div>
+            </div>
+            
+            {{ if eq .Source "local" }}
+            <div class="card-actions justify-end mt-3 pt-3 border-t border-white/10">
+                <div class="flex gap-2">
+                    <button
+                        class="btn btn-circle btn-xs btn-outline hover:border-primary hover:text-primary"
+                        onclick="event.stopPropagation(); showEditCollectionModal('{{.ID}}', '{{.Name}}', '{{.Description}}', '{{.Cover}}')"
+                        title="编辑歌单"
+                    >
+                        <i class="fa-solid fa-pen"></i>
+                    </button>
+                    <button
+                        class="btn btn-circle btn-xs btn-outline hover:border-error hover:text-error"
+                        onclick="event.stopPropagation(); deleteCollection('{{.ID}}')"
+                        title="删除歌单"
+                    >
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+            {{ end }}
+        </div>
+    </div>
+    {{ end }}
+</div>
+{{end}}
+
+<!-- Delete Collection Confirmation Script -->
+<script>
+    function deleteCollection(id) {
+        if (!confirm('确定要删除这个歌单吗？此操作不可恢复。')) return
+
+        fetch(`${window.API_ROOT}/collections/${id}`, { method: 'DELETE' })
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error)
+                } else {
+                    alert('歌单已删除')
+                    setTimeout(() => location.reload(), 1000)
+                }
+            })
+            .catch(err => {
+                alert('删除失败：' + err.message)
+            })
+    }
+
+    function showEditCollectionModal(id = null, name = '', description = '', cover = '') {
+        const modal = document.getElementById('edit_collection_modal')
+        if (modal && modal._x_dataStack) {
+            const modalData = modal._x_dataStack[0]
+            modalData.open(id)
+            if (id) {
+                modalData.name = name
+                modalData.description = description
+                modalData.cover = cover
+            }
+        }
+    }
+</script>
+{{end}}

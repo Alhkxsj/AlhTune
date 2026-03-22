@@ -1,0 +1,98 @@
+{{define "search_box"}}
+<!-- Note: Search box is now integrated into index.html -->
+<!-- This partial is kept for backward compatibility but deprecated -->
+<div class="card bg-base-200/50 backdrop-blur border border-white/10">
+    <div class="card-body">
+        <h2 class="card-title text-primary mb-4">
+            <i class="fa-solid fa-search"></i> 搜索音乐
+        </h2>
+
+        <!-- Search Type Tabs -->
+        <div role="tablist" class="tabs tabs-boxed tabs-lg mb-4">
+            <a
+                role="tab"
+                class="tab flex-1"
+                :class="{ 'tab-active': searchType === 'song' }"
+                @click="searchType = 'song'"
+            >单曲</a
+            >
+            <a
+                role="tab"
+                class="tab flex-1"
+                :class="{ 'tab-active': searchType === 'playlist' }"
+                @click="searchType = 'playlist'"
+            >歌单</a
+            >
+        </div>
+
+        <!-- Search Form -->
+        <form @submit.prevent="performSearch()" class="mb-4">
+            <div class="join w-full">
+                <input
+                    class="input input-bordered join-item flex-1 bg-base-300 border-white/10"
+                    type="text"
+                    x-model="keyword"
+                    placeholder="搜索歌曲、歌手或链接..."
+                    required
+                />
+                <button class="btn btn-primary join-item px-6" type="submit">
+                    <i class="fa-solid fa-search"></i> 搜索
+                </button>
+            </div>
+        </form>
+
+        <!-- Quick Actions -->
+        <div class="flex flex-wrap gap-2 mb-4">
+            <button class="btn btn-outline btn-secondary btn-sm gap-2" @click="goToRecommend()">
+                <i class="fa-solid fa-fire"></i> 每日推荐
+            </button>
+            <button class="btn btn-outline btn-primary btn-sm gap-2" @click="showFavorites = true">
+                <i class="fa-solid fa-folder-open"></i> 自制歌单
+            </button>
+        </div>
+
+        <!-- Source Selector -->
+        <div class="collapse collapse-arrow bg-base-300/50 border border-white/10">
+            <input type="checkbox" />
+            <div class="collapse-title font-medium flex items-center gap-2">
+                <i class="fa-solid fa-layer-group text-secondary"></i> 选择搜索源
+            </div>
+            <div class="collapse-content">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="text-sm opacity-70">搜索源</span>
+                    <div class="space-x-2">
+                        <button class="btn btn-xs btn-outline" @click="selectAllSources()">
+                            <i class="fa-solid fa-check-double"></i> 全选
+                        </button>
+                        <button class="btn btn-xs btn-outline" @click="clearAllSources()">
+                            <i class="fa-solid fa-xmark"></i> 清空
+                        </button>
+                    </div>
+                </div>
+                <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+                    <template x-for="source in allSources" :key="source">
+                        <label class="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-base-300">
+                            <input
+                                type="checkbox"
+                                :value="source"
+                                x-model="selectedSources"
+                                class="checkbox checkbox-primary checkbox-sm"
+                                :disabled="searchType === 'playlist' && !isSourceSupported(source)"
+                            />
+                            <span class="text-sm" x-text="getSourceName(source)"></span>
+                        </label>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        <!-- Error Message -->
+        {{ if .Error }}
+        <div class="alert alert-error mt-4 gap-2">
+            <i class="fa-solid fa-circle-exclamation"></i>
+            <span>{{ .Error }}</span>
+        </div>
+        {{ end }}
+    </div>
+</div>
+{{end}}

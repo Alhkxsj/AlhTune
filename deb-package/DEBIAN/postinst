@@ -1,0 +1,6 @@
+#!/data/data/com.termux/files/usr/bin/bash
+mkdir -p $HOME/Music/music-dl
+echo "music-dl 安装完成！"
+echo "使用方法："
+echo "  music-dl -k \"关键词\"     # 搜索音乐"
+echo "  music-dl web             # 启动 Web 界面"

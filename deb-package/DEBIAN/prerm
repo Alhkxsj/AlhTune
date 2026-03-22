@@ -1,0 +1,2 @@
+#!/data/data/com.termux/files/usr/bin/bash
+echo "正在卸载 music-dl..."

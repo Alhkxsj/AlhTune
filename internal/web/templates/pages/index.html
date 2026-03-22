@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="referrer" content="no-referrer" />
+        <title>music-dl</title>
+        <link rel="icon" href="{{.Root}}/icon.png" type="image/png" />
+
+        <!-- TailwindCSS + DaisyUI -->
+        <link
+            href="https://cdn.jsdelivr.net/npm/daisyui@4.4.19/dist/full.min.css"
+            rel="stylesheet"
+            type="text/css"
+        />
+        <script src="https://cdn.tailwindcss.com"></script>
+
+        <!-- Font Awesome -->
+        <link
+            rel="stylesheet"
+            href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6/css/all.min.css"
+        />
+
+        <!-- APlayer -->
+        <link
+            rel="stylesheet"
+            href="https://cdn.jsdelivr.net/npm/aplayer/dist/APlayer.min.css"
+        />
+
+        <!-- Alpine.js -->
+        <script
+            defer
+            src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
+        ></script>
+
+        <!-- Custom Theme -->
+        <script>
+            tailwind.config = {
+                darkMode: 'class',
+                theme: {
+                    extend: {
+                        colors: {
+                            primary: '#6366F1',
+                            secondary: '#A855F7',
+                            base: '#0F172A',
+                            'base-100': '#1E293B',
+                            'base-200': '#334155',
+                            'base-300': '#475569',
+                            content: '#F1F5F9'
+                        }
+                    }
+                },
+                daisyui: {
+                    themes: [
+                        {
+                            dark: {
+                                ...require('daisyui/src/theming/themes')['dark'],
+                                primary: '#6366F1',
+                                secondary: '#A855F7',
+                                base: '#0F172A',
+                                'base-100': '#1E293B',
+                                'base-200': '#334155',
+                                'base-300': '#475569'
+                            }
+                        }
+                    ]
+                }
+            }
+        </script>
+
+        <style>
+            [x-cloak] { display: none !important; }
+        </style>
+    </head>
+    <body
+        x-data="app()"
+        x-init="initApp()"
+        class="min-h-screen bg-base text-content"
+    >
+        <!-- Toast Notifications -->
+        <div
+            x-show="toasts.length > 0"
+            x-cloak
+            class="fixed bottom-4 right-4 z-50 space-y-2"
+        >
+            <template x-for="(toast, index) in toasts" :key="index">
+                <div
+                    x-show="true"
+                    x-transition:enter="transition ease-out duration-300"
+                    x-transition:enter-start="opacity-0 translate-y-2"
+                    x-transition:enter-end="opacity-100 translate-y-0"
+                    x-transition:leave="transition ease-in duration-200"
+                    x-transition:leave-start="opacity-100 translate-y-0"
+                    x-transition:leave-end="opacity-0 translate-y-2"
+                    class="alert shadow-lg max-w-xs"
+                    :class="{
+                        'alert-success': toast.type === 'success',
+                        'alert-error': toast.type === 'error',
+                        'alert-warning': toast.type === 'warning',
+                        'alert-info': toast.type === 'info'
+                    }"
+                >
+                    <i
+                        class="fa-solid"
+                        :class="{
+                            'fa-check-circle': toast.type === 'success',
+                            'fa-circle-exclamation': toast.type === 'error',
+                            'fa-triangle-exclamation': toast.type === 'warning',
+                            'fa-info-circle': toast.type === 'info'
+                        }"
+                    ></i>
+                    <span x-text="toast.message"></span>
+                </div>
+            </template>
+        </div>
+
+        <!-- Settings Modal -->
+        <dialog id="settings_modal" class="modal" x-show="showSettings" @click.self="showSettings = false">
+            <div class="modal-box bg-base-200 border border-white/10">
+                <h3 class="font-bold text-lg mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-gear text-primary"></i> 设置
+                </h3>
+
+                <div class="space-y-4">
+                    <!-- Cookies -->
+                    <div>
+                        <h4 class="font-medium mb-2 flex items-center gap-2">
+                            <i class="fa-solid fa-cookie-bite text-secondary"></i> Cookies 配置
+                        </h4>
+                        <div class="space-y-3 max-h-60 overflow-y-auto pr-2">
+                            <template x-for="source in allSources" :key="source">
+                                <div>
+                                    <label class="text-xs opacity-70 block mb-1" x-text="getSourceName(source)"></label>
+                                    <input
+                                        type="text"
+                                        class="input input-bordered input-sm w-full bg-base-300 border-white/10"
+                                        placeholder="在此粘贴 Cookie..."
+                                        x-model="cookies[source]"
+                                    />
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Embed Download -->
+                    <div class="flex items-center justify-between p-3 bg-base-300 rounded-lg">
+                        <div>
+                            <div class="font-medium flex items-center gap-2">
+                                <i class="fa-solid fa-file-audio text-primary"></i> 内嵌元数据
+                            </div>
+                            <div class="text-xs opacity-70 mt-1">
+                                下载时嵌入封面/歌词（会影响速度）
+                            </div>
+                        </div>
+                        <input
+                            type="checkbox"
+                            class="toggle toggle-primary"
+                            x-model="embedDownload"
+                        />
+                    </div>
+                </div>
+
+                <div class="modal-action">
+                    <button class="btn btn-primary" @click="saveSettings()">
+                        <i class="fa-solid fa-save"></i> 保存
+                    </button>
+                    <button class="btn" @click="showSettings = false">取消</button>
+                </div>
+            </div>
+            <form method="dialog" class="modal-backdrop">
+                <button>close</button>
+            </form>
+        </dialog>
+
+        <!-- Favorites Modal -->
+        <dialog id="favorites_modal" class="modal" x-show="showFavorites" @click.self="showFavorites = false">
+            <div class="modal-box bg-base-200 border border-white/10 max-w-2xl">
+                <h3 class="font-bold text-lg mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-folder-open text-secondary"></i> 我的自制歌单
+                </h3>
+                <div x-data="favoritesList()" x-init="init()" class="space-y-2" id="favorites-list-container">
+                    <!-- Loaded dynamically via Alpine -->
+                </div>
+                <div class="modal-action">
+                    <button class="btn btn-primary" @click="createNewCollection()">
+                        <i class="fa-solid fa-plus"></i> 新建歌单
+                    </button>
+                    <button class="btn" @click="showFavorites = false">关闭</button>
+                </div>
+            </div>
+            <form method="dialog" class="modal-backdrop">
+                <button>close</button>
+            </form>
+        </dialog>
+
+        <!-- Navbar -->
+        <nav class="navbar bg-base/80 backdrop-blur sticky top-0 z-40 border-b border-white/10 shadow-lg">
+            <div class="flex-1">
+                <a class="btn btn-ghost text-xl text-primary font-bold gap-2">
+                    <i class="fa-solid fa-music"></i>
+                    <span>music-dl</span>
+                </a>
+            </div>
+            <div class="flex-none gap-2">
+                <button
+                    class="btn btn-ghost btn-circle text-content hover:text-primary"
+                    @click="showSettings = true"
+                    title="设置"
+                >
+                    <i class="fa-solid fa-gear"></i>
+                </button>
+                <button
+                    class="btn btn-ghost btn-circle text-content hover:text-secondary"
+                    @click="showFavorites = true"
+                    title="收藏"
+                >
+                    <i class="fa-solid fa-folder-open"></i>
+                </button>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="container mx-auto p-4 max-w-6xl space-y-6">
+            <!-- Search Section -->
+            <section class="card bg-base-200/50 backdrop-blur border border-white/10 shadow-xl">
+                <div class="card-body">
+                    <h2 class="card-title text-primary mb-2">
+                        <i class="fa-solid fa-search"></i> 搜索音乐
+                    </h2>
+
+                    <!-- Search Type Tabs -->
+                    <div role="tablist" class="tabs tabs-boxed tabs-lg mb-4">
+                        <a
+                            role="tab"
+                            class="tab flex-1"
+                            :class="{ 'tab-active': searchType === 'song' }"
+                            @click="searchType = 'song'"
+                        >单曲</a
+                        >
+                        <a
+                            role="tab"
+                            class="tab flex-1"
+                            :class="{ 'tab-active': searchType === 'playlist' }"
+                            @click="searchType = 'playlist'"
+                        >歌单</a
+                        >
+                    </div>
+
+                    <!-- Search Form -->
+                    <form @submit.prevent="performSearch()" class="mb-4">
+                        <div class="join w-full">
+                            <input
+                                class="input input-bordered join-item flex-1 bg-base-300 border-white/10 focus:outline-none focus:border-primary"
+                                type="text"
+                                x-model="keyword"
+                                placeholder="搜索歌曲、歌手或链接..."
+                                required
+                            />
+                            <button
+                                class="btn btn-primary join-item px-6"
+                                type="submit"
+                            >
+                                <i class="fa-solid fa-search"></i> 搜索
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Quick Actions -->
+                    <div class="flex flex-wrap gap-2 mb-4">
+                        <button
+                            class="btn btn-outline btn-secondary btn-sm gap-2"
+                            @click="goToRecommend()"
+                        >
+                            <i class="fa-solid fa-fire"></i> 每日推荐
+                        </button>
+                        <button
+                            class="btn btn-outline btn-primary btn-sm gap-2"
+                            @click="showFavorites = true"
+                        >
+                            <i class="fa-solid fa-folder-open"></i> 自制歌单
+                        </button>
+                    </div>
+
+                    <!-- Source Selector -->
+                    <div class="collapse collapse-arrow bg-base-300/50 border border-white/10">
+                        <input type="checkbox" />
+                        <div class="collapse-title font-medium flex items-center gap-2">
+                            <i class="fa-solid fa-layer-group text-secondary"></i> 选择搜索源
+                        </div>
+                        <div class="collapse-content">
+                            <div class="flex justify-between items-center mb-3">
+                                <span class="text-sm opacity-70">搜索源</span>
+                                <div class="space-x-2">
+                                    <button
+                                        class="btn btn-xs btn-outline"
+                                        @click="selectAllSources()"
+                                    >
+                                        <i class="fa-solid fa-check-double"></i> 全选
+                                    </button>
+                                    <button
+                                        class="btn btn-xs btn-outline"
+                                        @click="clearAllSources()"
+                                    >
+                                        <i class="fa-solid fa-xmark"></i> 清空
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+                                <template x-for="source in allSources" :key="source">
+                                    <label class="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-base-300 transition-colors">
+                                        <input
+                                            type="checkbox"
+                                            :value="source"
+                                            x-model="selectedSources"
+                                            class="checkbox checkbox-primary checkbox-sm"
+                                            :disabled="searchType === 'playlist' && !isSourceSupported(source)"
+                                        />
+                                        <span class="text-sm" x-text="getSourceName(source)"></span>
+                                    </label>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Error Message -->
+                    <template x-if="error">
+                        <div class="alert alert-error mt-4 gap-2">
+                            <i class="fa-solid fa-circle-exclamation"></i>
+                            <span x-text="error"></span>
+                        </div>
+                    </template>
+                </div>
+            </section>
+
+            <!-- Playlist Grid (if exists) -->
+            {{template "playlist_grid" .}}
+
+            <!-- Song List Section -->
+            {{template "song_list" .}}
+        </main>
+
+        <!-- Modals -->
+        {{template "modals" .}}
+
+        <!-- APlayer Container -->
+        <div id="aplayer" class="mb-4 mx-4"></div>
+
+        <!-- VideoGen Modal -->
+        {{template "videogen_modal" .}}
+
+        <!-- Scripts -->
+        <script>
+            window.API_ROOT = '{{.Root}}'
+            window.allSources = {{ .AllSourcesJSON }}
+            window.selectedSources = {{ .SelectedJSON }}
+
+            function app() {
+                return {
+                    searchType: 'song',
+                    keyword: '',
+                    selectedSources: [],
+                    allSources: [],
+                    error: '',
+                    showSettings: false,
+                    showFavorites: false,
+                    embedDownload: false,
+                    cookies: {},
+                    toasts: [],
+
+                    initApp() {
+                        this.allSources = window.allSources || []
+                        this.selectedSources = window.selectedSources || this.getDefaultSources()
+                        this.loadSettings()
+                    },
+
+                    getDefaultSources() {
+                        const excluded = ['bilibili', 'joox', 'jamendo', 'fivesing']
+                        return this.allSources.filter(s => !excluded.includes(s))
+                    },
+
+                    getSourceName(source) {
+                        const names = {
+                            netease: '网易云',
+                            qq: 'QQ 音乐',
+                            kugou: '酷狗',
+                            kuwo: '酷我',
+                            migu: '咪咕',
+                            fivesing: '5sing',
+                            jamendo: 'Jamendo',
+                            joox: 'JOOX',
+                            qianqian: '千千',
+                            soda: 'Soda',
+                            bilibili: 'B 站'
+                        }
+                        return names[source] || source
+                    },
+
+                    selectAllSources() {
+                        this.selectedSources = [...this.allSources]
+                    },
+
+                    clearAllSources() {
+                        this.selectedSources = []
+                    },
+
+                    performSearch() {
+                        if (!this.keyword.trim()) {
+                            this.error = '请输入搜索内容'
+                            return
+                        }
+                        const sources = this.selectedSources.join(',')
+                        window.location.href = `${window.API_ROOT}/search?q=${encodeURIComponent(this.keyword)}&type=${this.searchType}&sources=${sources}`
+                    },
+
+                    goToRecommend() {
+                        const supported = ['netease', 'qq', 'kugou', 'kuwo']
+                        const selected = this.selectedSources.filter(s => supported.includes(s))
+                        if (selected.length === 0) {
+                            this.showToast('请至少选择一个支持推荐歌单的音乐源', 'warning')
+                            return
+                        }
+                        const params = new URLSearchParams()
+                        selected.forEach(s => params.append('sources', s))
+                        window.location.href = `/recommend?${params.toString()}`
+                    },
+
+                    loadSettings() {
+                        try {
+                            const raw = localStorage.getItem('musicdl:web_settings')
+                            if (raw) {
+                                const parsed = JSON.parse(raw)
+                                this.embedDownload = parsed.embedDownload || false
+                            }
+                        } catch (e) {}
+                    },
+
+                    saveSettings() {
+                        localStorage.setItem(
+                            'musicdl:web_settings',
+                            JSON.stringify({
+                                embedDownload: this.embedDownload
+                            })
+                        )
+                        this.saveCookies()
+                        this.showToast('设置已保存', 'success')
+                        this.showSettings = false
+                    },
+
+                    saveCookies() {
+                        fetch(`${window.API_ROOT}/cookies`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ cookies: this.cookies })
+                        }).catch(err => console.error(err))
+                    },
+
+                    createNewCollection() {
+                        const modal = document.getElementById('edit_collection_modal')
+                        if (modal && modal._x_dataStack) {
+                            modal._x_dataStack[0].open(null)
+                        }
+                    },
+
+                    showToast(message, type = 'info') {
+                        this.toasts.push({ message, type })
+                        setTimeout(() => {
+                            this.toasts.shift()
+                        }, 3000)
+                    },
+
+                    isSourceSupported(source) {
+                        const supported = ['netease', 'qq', 'kugou', 'kuwo', 'bilibili', 'soda', 'fivesing']
+                        return supported.includes(source)
+                    }
+                }
+            }
+
+            // Favorites list module
+            function favoritesList() {
+                return {
+                    collections: [],
+                    loading: true,
+
+                    async init() {
+                        try {
+                            const res = await fetch(`${window.API_ROOT}/collections`)
+                            this.collections = await res.json()
+                        } catch (e) {
+                            console.error('Failed to load collections:', e)
+                        } finally {
+                            this.loading = false
+                        }
+                    }
+                }
+            }
+        </script>
+
+        <script src="https://cdn.jsdelivr.net/npm/aplayer/dist/APlayer.min.js"></script>
+        <script src="{{.Root}}/modules/navbar.js"></script>
+        <script src="{{.Root}}/modules/search.js"></script>
+        <script src="{{.Root}}/modules/list.js"></script>
+        <script src="{{.Root}}/modules/player.js"></script>
+        <script src="{{.Root}}/modules/settings.js"></script>
+        <script src="{{.Root}}/videogen.js"></script>
+    </body>
+</html>

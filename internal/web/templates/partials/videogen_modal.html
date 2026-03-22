@@ -1,0 +1,221 @@
+{{define "videogen_modal"}}
+<div id="vg-modal" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm hidden" x-show="false">
+    <!-- Background Layer -->
+    <div id="vg-bg" class="absolute inset-0 overflow-hidden">
+        <img id="vg-bg-img" class="absolute inset-0 w-full h-full object-cover opacity-30 is-image" src="">
+        <video id="vg-bg-video" class="absolute inset-0 w-full h-full object-cover opacity-30" autoplay loop muted style="display:none;"></video>
+    </div>
+    
+    <!-- Close Button -->
+    <div class="absolute top-4 right-4 z-50">
+        <button class="btn btn-circle btn-lg btn-ghost text-white hover:bg-white/20" onclick="VideoGen.close()">
+            <i class="fa-solid fa-xmark text-2xl"></i>
+        </button>
+    </div>
+    
+    <!-- Main Container -->
+    <div class="vg-container absolute inset-0 flex flex-col lg:flex-row">
+        <!-- Left Panel -->
+        <div class="vg-left flex-1 flex flex-col items-center justify-center p-4 lg:p-8">
+            <!-- Disc & Cover -->
+            <div class="vg-disc-container relative mb-6" id="vg-disc-container">
+                <!-- Visualizer -->
+                <div class="vg-visualizer absolute inset-0" id="vg-visualizer"></div>
+                
+                <!-- Disc -->
+                <div class="vg-disc-wrap relative w-48 h-48 lg:w-64 lg:h-64 rounded-full bg-gradient-to-br from-gray-800 to-black shadow-2xl border-4 border-white/10 animate-spin-slow">
+                    <!-- Cover -->
+                    <div class="vg-cover-container absolute inset-2 rounded-full overflow-hidden" id="vg-cover-container">
+                        <img id="vg-cover-img" class="vg-cover-content w-full h-full object-cover" src="">
+                        <video id="vg-cover-video" class="vg-cover-content w-full h-full object-cover" autoplay loop muted style="display:none;"></video>
+                    </div>
+                    <!-- Center Hole -->
+                    <div class="absolute inset-0 flex items-center justify-center">
+                        <div class="w-12 h-12 rounded-full bg-black/80 border-2 border-white/20"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Song Info -->
+            <div class="vg-info text-center mb-6 max-w-md">
+                <div id="vg-title" class="vg-title text-xl lg:text-2xl font-bold text-white mb-2 truncate"></div>
+                <div id="vg-artist" class="vg-artist text-sm lg:text-base text-white/70 mb-4 truncate"></div>
+                
+                <!-- Progress Bar -->
+                <div class="vg-progress-wrapper flex items-center gap-3 mb-4">
+                    <span id="vg-time-current" class="text-xs text-white/70 font-mono">00:00</span>
+                    <input
+                        type="range"
+                        id="vg-seek-bar"
+                        class="range range-xs range-primary flex-1"
+                        value="0"
+                        step="0.1"
+                        min="0"
+                        max="100"
+                    >
+                    <span id="vg-time-total" class="text-xs text-white/70 font-mono">00:00</span>
+                </div>
+                
+                <!-- Playback Controls -->
+                <div class="vg-playback-row flex items-center justify-center gap-4">
+                    <button class="vg-ctrl-icon w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 transition-colors flex items-center justify-center text-white" onclick="VideoGen.playPrev()" title="上一首">
+                        <i class="fa-solid fa-backward-step"></i>
+                    </button>
+                    <button class="vg-ctrl-icon vg-play-center w-14 h-14 rounded-full bg-primary hover:bg-primary/80 transition-colors flex items-center justify-center text-white text-xl" onclick="VideoGen.togglePlay()" title="播放/暂停">
+                        <i id="vg-play-toggle-icon" class="fa-solid fa-play"></i>
+                    </button>
+                    <button class="vg-ctrl-icon w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 transition-colors flex items-center justify-center text-white" onclick="VideoGen.playNext()" title="下一首">
+                        <i class="fa-solid fa-forward-step"></i>
+                    </button>
+                    
+                    <!-- Volume Control -->
+                    <div class="vg-vol-group flex items-center gap-2 ml-4">
+                        <button
+                            class="vg-ctrl-icon w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 transition-colors flex items-center justify-center text-white"
+                            id="vg-vol-icon"
+                            onclick="VideoGen.toggleMute()"
+                            title="静音/恢复"
+                        >
+                            <i class="fa-solid fa-volume-high"></i>
+                        </button>
+                        <input
+                            type="range"
+                            id="vg-volume-bar"
+                            class="range range-xs range-secondary w-20"
+                            value="70"
+                            step="1"
+                            min="0"
+                            max="100"
+                        >
+                        <span id="vg-vol-text" class="text-xs text-white/70 font-mono w-10">70%</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="vg-controls flex flex-wrap justify-center gap-3 mt-4" id="vg-controls">
+                {{if $.VgChangeCover}}
+                <input type="file" id="vg-file-input" accept="image/*,video/mp4" class="hidden" onchange="VideoGen.handleFileSelect(this)">
+                <button
+                    class="btn btn-outline btn-sm gap-2 text-white border-white/30 hover:bg-white/20"
+                    onclick="document.getElementById('vg-file-input').click()"
+                    title="更换封面/背景"
+                >
+                    <i class="fa-regular fa-image"></i> 更换封面
+                </button>
+                {{end}}
+
+                {{if $.VgChangeAudio}}
+                <input type="file" id="vg-audio-input" accept="audio/*" class="hidden" onchange="VideoGen.handleAudioSelect(this)">
+                <button
+                    class="btn btn-outline btn-sm gap-2 text-white border-white/30 hover:bg-white/20"
+                    onclick="document.getElementById('vg-audio-input').click()"
+                    title="更换本地音频 (仅限网页预览)"
+                >
+                    <i class="fa-solid fa-music"></i> 更换音频
+                </button>
+                {{end}}
+
+                {{if $.VgChangeLyric}}
+                <input type="file" id="vg-lyric-input" accept=".lrc,.txt" class="hidden" onchange="VideoGen.handleLyricSelect(this)">
+                <button
+                    class="btn btn-outline btn-sm gap-2 text-white border-white/30 hover:bg-white/20"
+                    onclick="document.getElementById('vg-lyric-input').click()"
+                    title="更换本地歌词 (.lrc)"
+                >
+                    <i class="fa-solid fa-file-lines"></i> 更换歌词
+                </button>
+                {{end}}
+
+                {{if $.VgExportVideo}}
+                <button
+                    class="btn btn-primary btn-sm gap-2"
+                    onclick="VideoGen.startRendering()"
+                >
+                    <i class="fa-solid fa-clapperboard"></i> 导出视频
+                </button>
+                {{end}}
+            </div>
+        </div>
+
+        <!-- Right Panel - Lyrics -->
+        <div class="vg-right w-full lg:w-96 flex flex-col border-t lg:border-t-0 lg:border-l border-white/10">
+            <div class="vg-lyrics-header px-4 py-3 bg-black/40 text-center">
+                <span class="text-xs font-bold text-white/70 tracking-wider">LYRICS PREVIEW</span>
+            </div>
+            <div id="vg-lyrics" class="vg-lyrics-box flex-1 overflow-y-auto p-4 space-y-2"></div>
+        </div>
+    </div>
+
+    <!-- Loading Status -->
+    <div id="vg-status-loading" class="vg-status fixed inset-0 z-50 flex items-center justify-center bg-black/90 hidden">
+        <div class="text-center">
+            <div class="text-5xl mb-4 text-primary">
+                <i class="fa-solid fa-compact-disc fa-spin"></i>
+            </div>
+            <h3 id="vg-status-text" class="text-xl font-bold text-white mb-4">正在分析音频...</h3>
+            <div class="vg-progress-bar w-64 h-2 bg-white/20 rounded-full mx-auto overflow-hidden">
+                <div id="vg-progress-fill" class="vg-progress-fill h-full bg-gradient-to-r from-primary to-secondary rounded-full" style="width: 0%"></div>
+            </div>
+            <p id="vg-status-sub" class="text-sm text-white/60 mt-4">渲染期间不会影响当前音乐播放</p>
+        </div>
+    </div>
+
+    <!-- Success Status -->
+    <div id="vg-status-success" class="vg-status fixed inset-0 z-50 flex items-center justify-center bg-black/90 hidden">
+        <div class="text-center">
+            <div class="text-7xl mb-6 text-green-500">
+                <i class="fa-solid fa-circle-check"></i>
+            </div>
+            <h3 class="text-2xl font-bold text-white mb-8">生成成功！</h3>
+            <div class="flex justify-center gap-4">
+                <a
+                    id="vg-dl-link"
+                    href="#"
+                    target="_blank"
+                    class="btn btn-primary btn-lg gap-2"
+                    download
+                >
+                    <i class="fa-solid fa-download"></i> 点击下载
+                </a>
+                <button onclick="VideoGen.reset()" class="btn btn-outline btn-lg gap-2 text-white border-white/30 hover:bg-white/20">
+                    <i class="fa-solid fa-arrow-rotate-left"></i> 返回
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Custom Styles for VideoGen -->
+<style>
+    @keyframes spin-slow {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    
+    .animate-spin-slow {
+        animation: spin-slow 8s linear infinite;
+    }
+    
+    .vg-overlay {
+        font-family: system-ui, -apple-system, sans-serif;
+    }
+    
+    .vg-lyrics-box::-webkit-scrollbar {
+        width: 6px;
+    }
+    
+    .vg-lyrics-box::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.05);
+    }
+    
+    .vg-lyrics-box::-webkit-scrollbar-thumb {
+        background: rgba(99, 102, 241, 0.5);
+        border-radius: 3px;
+    }
+    
+    .vg-lyrics-box::-webkit-scrollbar-thumb:hover {
+        background: rgba(99, 102, 241, 0.7);
+    }
+</style>
+{{end}}

@@ -1,0 +1,345 @@
+{{define "modals"}}
+
+<!-- Edit Collection Modal -->
+<dialog id="edit_collection_modal" class="modal" x-data="editCollectionModal()">
+    <div class="modal-box bg-base-200 border border-white/10 max-w-md">
+        <h3 class="font-bold text-lg mb-4 flex items-center gap-2">
+            <i class="fa-solid" :class="collectionId ? 'fa-folder-open text-primary' : 'fa-folder-plus text-secondary'"></i>
+            <span x-text="collectionId ? '编辑歌单' : '新建歌单'"></span>
+        </h3>
+        <div class="space-y-4">
+            <input type="hidden" x-model="collectionId" />
+            <div>
+                <label class="label">
+                    <span class="label-text font-medium">名称 <span class="text-error">*</span></span>
+                </label>
+                <input
+                    type="text"
+                    x-model="name"
+                    class="input input-bordered w-full bg-base-300 border-white/10"
+                    placeholder="例如：睡前听的歌"
+                    maxlength="30"
+                />
+            </div>
+            <div>
+                <label class="label">
+                    <span class="label-text font-medium">描述</span>
+                </label>
+                <input
+                    type="text"
+                    x-model="description"
+                    class="input input-bordered w-full bg-base-300 border-white/10"
+                    placeholder="简单描述一下..."
+                />
+            </div>
+            <div>
+                <label class="label">
+                    <span class="label-text font-medium">封面图片 URL</span>
+                </label>
+                <input
+                    type="text"
+                    x-model="cover"
+                    class="input input-bordered w-full bg-base-300 border-white/10"
+                    placeholder="留空则自动生成随机封面"
+                />
+            </div>
+        </div>
+        <div class="modal-action">
+            <button class="btn btn-primary" @click="save()">
+                <i class="fa-solid fa-save"></i> 保存
+            </button>
+            <button class="btn" @click="close()">取消</button>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
+
+<!-- Add to Collection Modal -->
+<dialog id="add_to_collection_modal" class="modal" x-data="addToCollectionModal()">
+    <div class="modal-box bg-base-200 border border-white/10 max-w-md">
+        <h3 class="font-bold text-lg mb-4 flex items-center gap-2">
+            <i class="fa-solid fa-heart text-pink-500"></i> 收藏到歌单
+        </h3>
+        <div class="mb-4 flex justify-between items-center">
+            <span class="text-sm opacity-70">选择歌单</span>
+            <button
+                class="btn btn-primary btn-xs gap-1"
+                @click="$dispatch('open-edit-collection')"
+            >
+                <i class="fa-solid fa-plus"></i> 新建
+            </button>
+        </div>
+        <div class="space-y-2 max-h-80 overflow-y-auto pr-2">
+            <template x-if="collections.length === 0">
+                <div class="text-center opacity-50 py-8">
+                    <i class="fa-solid fa-folder-open text-4xl mb-2"></i>
+                    <p>暂无歌单，请先创建</p>
+                </div>
+            </template>
+            <template x-for="col in collections" :key="col.id">
+                <div
+                    class="card bg-base-300 cursor-pointer hover:bg-base-200 transition-all border border-white/10"
+                    @click="addToCollection(col.id)"
+                >
+                    <div class="card-body p-3">
+                        <h4 class="font-bold text-sm" x-text="col.name"></h4>
+                        <p class="text-xs opacity-70 truncate" x-text="col.description || '无描述'"></p>
+                    </div>
+                </div>
+            </template>
+        </div>
+        <div class="modal-action">
+            <button class="btn" @click="close()">取消</button>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
+
+<!-- Batch Switch Source Modal -->
+<dialog id="batch_switch_modal" class="modal" x-data="batchSwitchModal()">
+    <div class="modal-box bg-base-200 border border-white/10 max-w-md">
+        <h3 class="font-bold text-lg mb-4 flex items-center gap-2">
+            <i class="fa-solid fa-arrows-rotate text-secondary"></i> 批量换源
+        </h3>
+        <div class="mb-4">
+            <label class="label">
+                <span class="label-text font-medium">选择目标音源</span>
+            </label>
+            <select x-model="targetSource" class="select select-bordered w-full bg-base-300 border-white/10">
+                <option value="netease">网易云音乐</option>
+                <option value="qq">QQ 音乐</option>
+                <option value="kugou">酷狗音乐</option>
+                <option value="kuwo">酷我音乐</option>
+                <option value="migu">咪咕音乐</option>
+            </select>
+        </div>
+        <div class="alert alert-info text-sm gap-2">
+            <i class="fa-solid fa-circle-info"></i>
+            <span>将为 <span class="font-bold" x-text="count"></span> 首歌曲切换音源</span>
+        </div>
+        <div class="modal-action">
+            <button class="btn btn-primary gap-2" @click="confirm()">
+                <i class="fa-solid fa-check"></i> 确认切换
+            </button>
+            <button class="btn" @click="close()">取消</button>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
+
+<!-- Loading Modal -->
+<dialog id="loading_modal" class="modal" x-data="loadingModal()">
+    <div class="modal-box bg-base-200 border border-white/10 text-center max-w-sm">
+        <span class="loading loading-spinner loading-lg text-primary"></span>
+        <p class="mt-4 font-medium" x-text="loadingText">加载中...</p>
+    </div>
+</dialog>
+
+<script>
+    // Edit Collection Modal
+    function editCollectionModal() {
+        return {
+            collectionId: '',
+            name: '',
+            description: '',
+            cover: '',
+
+            open(id = null) {
+                this.collectionId = id || ''
+                this.name = ''
+                this.description = ''
+                this.cover = ''
+                if (id) {
+                    this.loadCollection(id)
+                }
+                this.$el.showModal()
+            },
+
+            loadCollection(id) {
+                fetch(`${window.API_ROOT}/collections/${id}`)
+                    .then(res => res.json())
+                    .then(col => {
+                        this.name = col.name
+                        this.description = col.description
+                        this.cover = col.cover || ''
+                    })
+                    .catch(err => console.error(err))
+            },
+
+            save() {
+                if (!this.name.trim()) {
+                    alert('请输入歌单名称')
+                    return
+                }
+
+                const url = this.collectionId
+                    ? `${window.API_ROOT}/collections/${this.collectionId}`
+                    : `${window.API_ROOT}/collections`
+                const method = this.collectionId ? 'PUT' : 'POST'
+
+                fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: this.name,
+                        description: this.description,
+                        cover: this.cover
+                    })
+                })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.error) {
+                            alert(data.error)
+                        } else {
+                            alert(this.collectionId ? '歌单已更新' : '歌单已创建')
+                            this.close()
+                            if (window.refreshFavoritesList) {
+                                window.refreshFavoritesList()
+                            }
+                        }
+                    })
+                    .catch(err => {
+                        alert('操作失败：' + err.message)
+                    })
+            },
+
+            close() {
+                this.$el.close()
+            }
+        }
+    }
+
+    // Add to Collection Modal
+    function addToCollectionModal() {
+        return {
+            currentSong: null,
+            collections: [],
+
+            open(songData) {
+                this.currentSong = songData
+                this.loadCollections()
+                this.$el.showModal()
+            },
+
+            loadCollections() {
+                fetch(`${window.API_ROOT}/collections`)
+                    .then(res => res.json())
+                    .then(cols => {
+                        this.collections = cols
+                    })
+                    .catch(err => console.error(err))
+            },
+
+            addToCollection(collectionId) {
+                if (!this.currentSong) return
+
+                fetch(`${window.API_ROOT}/collections/${collectionId}/songs`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(this.currentSong)
+                })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.error) {
+                            alert(data.error)
+                        } else {
+                            alert('已添加到歌单')
+                            this.close()
+                        }
+                    })
+                    .catch(err => {
+                        alert('添加失败：' + err.message)
+                    })
+            },
+
+            close() {
+                this.$el.close()
+            }
+        }
+    }
+
+    // Batch Switch Source Modal
+    function batchSwitchModal() {
+        return {
+            targetSource: 'netease',
+            count: 0,
+            selectedSongs: [],
+
+            open(songs) {
+                this.selectedSongs = songs || []
+                this.count = this.selectedSongs.length
+                this.$el.showModal()
+            },
+
+            confirm() {
+                // Open loading modal
+                const loadingModal = document.getElementById('loading_modal')
+                if (loadingModal && loadingModal._x_dataStack) {
+                    loadingModal._x_dataStack[0].loadingText = `正在为 ${this.count} 首歌曲切换音源...`
+                    loadingModal.showModal()
+                }
+
+                const promises = this.selectedSongs.map(song =>
+                    fetch(`${window.API_ROOT}/switch_source`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            id: song.id,
+                            source: song.source,
+                            target: this.targetSource
+                        })
+                    }).then(res => res.json())
+                )
+
+                Promise.all(promises)
+                    .then(results => {
+                        if (loadingModal) loadingModal.close()
+                        const successCount = results.filter(r => !r.error).length
+                        alert(`成功切换 ${successCount}/${this.count} 首歌曲`)
+                        this.close()
+                        setTimeout(() => location.reload(), 1000)
+                    })
+                    .catch(err => {
+                        if (loadingModal) loadingModal.close()
+                        alert('批量换源失败：' + err.message)
+                    })
+            },
+
+            close() {
+                this.$el.close()
+            }
+        }
+    }
+
+    // Loading Modal
+    function loadingModal() {
+        return {
+            loadingText: '加载中...'
+        }
+    }
+
+    // Global helper functions
+    function openEditCollectionModal(collectionId = null) {
+        const modal = document.getElementById('edit_collection_modal')
+        if (modal && modal._x_dataStack) {
+            modal._x_dataStack[0].open(collectionId)
+        }
+    }
+
+    // Listen for open-edit-collection event
+    document.addEventListener('open-edit-collection', () => {
+        openEditCollectionModal()
+    })
+
+    // Global refresh function
+    window.refreshFavoritesList = function () {
+        setTimeout(() => location.reload(), 500)
+    }
+</script>
+{{end}}
